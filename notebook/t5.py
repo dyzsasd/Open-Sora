@@ -266,8 +266,9 @@ class MNistEncoder:
             text = [text]
 
         text = [int(t) for t in text]
+        coding = torch.tensor([self.embeddings[ind] for ind in text])
         return {
-            'y': self.embeddings[1].unsqueeze(1).unsqueeze(2),
+            'y': coding.unsqueeze(1).unsqueeze(2),
             'mask': torch.ones((len(text), 1), dtype=int)
         }
 
