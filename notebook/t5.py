@@ -35,7 +35,7 @@ from transformers import AutoTokenizer, T5EncoderModel
 
 
 class T5Embedder:
-    available_models = ["DeepFloyd/t5-v1_1-xxl"]
+    available_models = ["DeepFloyd/t5-v1_1-xxl", "google-t5/t5-small"]
     bad_punct_regex = re.compile(
         r"[" + "#®•©™&@·º½¾¿¡§~" + "\)" + "\(" + "\]" + "\[" + "\}" + "\{" + "\|" + "\\" + "\/" + "\*" + r"]{1,}"
     )  # noqa
