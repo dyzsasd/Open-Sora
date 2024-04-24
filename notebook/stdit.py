@@ -256,7 +256,8 @@ class STDiT(nn.Module):
                     tpe = self.pos_embed_temporal
             else:
                 tpe = None
-            x = auto_grad_checkpoint(block, x, y, t0, y_lens, tpe)
+            # TODO: check why it's using y_lens: x = auto_grad_checkpoint(block, x, y, t0, y_lens, tpe)
+            x = auto_grad_checkpoint(block, x, y, t0, None, tpe)
 
         if self.enable_sequence_parallelism:
             x = gather_forward_split_backward(x, get_sequence_parallel_group(), dim=1, grad_scale="up")
