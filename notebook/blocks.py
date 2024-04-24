@@ -139,7 +139,7 @@ class Attention(nn.Module):
         qkv = qkv.view(qkv_shape).permute(qkv_permute_shape)
         q, k, v = qkv.unbind(0)
         q, k = self.q_norm(q), self.k_norm(k)
-        
+
         dtype = q.dtype
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)  # translate attn to float32
@@ -202,7 +202,7 @@ class SeqParallelAttention(Attention):
 
         q, k, v = qkv.unbind(0)
         q, k = self.q_norm(q), self.k_norm(k)
-        
+
         dtype = q.dtype
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)  # translate attn to float32
@@ -242,23 +242,24 @@ class MultiHeadCrossAttention(nn.Module):
         self.proj = nn.Linear(d_model, d_model)
         self.proj_drop = nn.Dropout(proj_drop)
 
+        self.multihead_attn = nn.MultiheadAttention(self.head_dim, self.num_heads, dropout=attn_drop)
+
     def forward(self, x, cond, mask=None):
+        # query/value: img tokens; key: condition; mask: if padding tokens
         B, N, C = x.shape
 
-        q = self.q_linear(x).view(B, N, self.num_heads, self.head_dim).transpose(1, 2)
-        kv = self.kv_linear(cond).view(B, N, 2, self.num_heads, self.head_dim).transpose(1, 2)
+        q = self.q_linear(x).view(1, -1, self.num_heads, self.head_dim)
+        kv = self.kv_linear(cond).view(1, -1, 2, self.num_heads, self.head_dim)
         k, v = kv.unbind(2)
 
-        attn_weights = (q @ k.transpose(-2, -1)) * (self.head_dim ** -0.5)
-        if mask is not None:
-            attn_weights = attn_weights.masked_fill(mask == 0, float('-inf'))
+        attn_bias = None
+        # if mask is not None:
+        #     attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
+        # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
+        x = self.multihead_attn(q, k, v, attn_mask=attn_bias)
 
-        attn_weights = F.softmax(attn_weights, dim=-1)
-        attn_weights = self.attn_drop(attn_weights)
-
-        attn_output = attn_weights @ v
-        attn_output = attn_output.transpose(1, 2).contiguous().view(B, N, C)
-        x = self.proj(attn_output)
+        x = x.view(B, -1, C)
+        x = self.proj(x)
         x = self.proj_drop(x)
         return x
 
