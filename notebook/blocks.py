@@ -17,6 +17,7 @@ import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint
+import xformers.ops
 from einops import rearrange
 from timm.models.vision_transformer import Mlp
 
@@ -253,10 +254,10 @@ class MultiHeadCrossAttention(nn.Module):
         k, v = kv.unbind(2)
 
         attn_bias = None
-        # if mask is not None:
-        #     attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
-        # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
-        x = self.multihead_attn(q, k, v, attn_mask=attn_bias)
+        if mask is not None:
+            attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
+        x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
+        # x = self.multihead_attn(q, k, v, attn_mask=attn_bias)
 
         x = x.view(B, -1, C)
         x = self.proj(x)
